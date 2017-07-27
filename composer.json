@@ -21,8 +21,6 @@
 	"issues": "https://github.com/laravelbook/ardent/issues"
   },
   "require": {
-    "php": ">=5.5",
-    "laravel/framework": "5.3.*",
     "illuminate/support": "~5.1",
     "illuminate/database": "~5.1",
     "illuminate/validation": "~5.1",
