@@ -1,0 +1,102 @@
+<?php
+
+namespace $MODULE_NAMESPACE$\$STUDLY_NAME$\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon;
+
+use $MODULE_NAMESPACE$\$STUDLY_NAME$\Core\Helper;
+use $MODULE_NAMESPACE$\$STUDLY_NAME$\Core\Tree;
+use $MODULE_NAMESPACE$\$STUDLY_NAME$\Core\Agent;
+use $MODULE_NAMESPACE$\$STUDLY_NAME$\Model\Setting;
+
+class Base extends Controller
+{
+    public $R;
+    public $T;
+    public $C;
+    public $page_size;
+    public $theme;
+    public $ip;
+    public $data = array();
+    
+    public function __construct() {
+        //$this->middleware('auth');
+        $this->init();
+    }
+
+    private function init(){
+        $uri = \Request::path();
+        $domain = $this->getDomain();
+        $cfg = new \stdClass();
+        if(Cache::has($domain)){
+            $cfg = unserialize(Cache::get($domain));          
+        }else{     
+            $settings = Setting::where('code', 'config')->get();
+            foreach($settings as $setting){
+                $key = $setting->key;
+                if($setting->serialized){
+                    $cfg->$key = unserialize($setting->value);
+                }else{
+                    $cfg->$key = $setting->value; 
+                }                            
+            }
+            $expire = Carbon::now()->addMinutes(30);
+            Cache::put($domain, serialize($cfg), $expire);
+        }
+        $this->C = $cfg;
+        $this->R = $this->parseRequest();
+        $this->T = new \stdClass();
+        $this->T->WEB_RES = '/assets/' . $cfg->theme . '/';
+        $this->T->WAP = $this->isMobile();
+        $this->T->URI = $uri;
+        $this->page_size = $cfg->page_size;
+        $this->theme = 'app::'.$cfg->theme;
+        $this->ip = ip2long(\Request::ip());      
+    }
+
+    public function view($tpl, $arr = array()){
+
+        $addon = array(
+            'R'=>$this->R,
+            'T'=>$this->T,
+            'C'=>$this->C,
+        );
+        $arr = array_merge($arr, $addon);
+        return view($this->theme . '.' . $tpl, $arr);
+    }
+
+    public function getDomain(){
+        $domain = '';
+        $uri = strtolower(str_ireplace(array('http://', 'https://', 'www.'), array('', '', ''), \Request::url()));
+        $arr = explode("/", $uri);
+        if($arr){
+            $domain = $arr[0];
+        }
+        return $domain;
+    }
+
+    public function isMobile(){
+        $mobile = false;
+        $agent = new Agent;
+        $mobile = $agent->isMobile();
+        return $mobile;
+    }
+
+    public function parseRequest(){
+        $req = new \stdClass();
+        $req->tag = '';
+        $req->sort = '';
+        $req->asc = '';
+
+        foreach(\Request::all() as $key => $value){
+            $req->$key = $value;                        
+        }
+        return $req;
+    }
+    
+     
+}

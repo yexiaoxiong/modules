@@ -1,0 +1,130 @@
+<?php
+
+namespace $MODULE_NAMESPACE$\Base;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Base extends Model
+{
+     public $timestamps = false;
+    //public $primaryKey = 'id';
+    //public $incrementing = false;
+    protected $guarded = [];
+
+    public static function parseInput($item){
+        $arr = $item->toArray();
+        foreach($arr as $key => $value){
+            if($value == null){
+                $arr[$key] = '';
+            }
+            if($key == '_token'){
+            	unset($arr['_token']);
+            }
+        }
+        return $arr;
+    }
+
+    //通过id获取一条
+     public static function getItemById($id){
+        return self::find($id);
+    }
+
+    //按条件获取一条
+    public static function getItemByTag($field, $tag){
+        return self::where($field, $tag)->first();
+    }
+
+    /*
+    *@param $type 取多少条or分页
+     @param $num 取的条数
+     @param $field 字段
+     @param $operate 筛选条件
+     @param $value 值
+     @param $sort 排序字段
+    */
+    public static function getListWhereBase($type = 'top', $num = 0, $field = '', $operate = '', $value = '', $sort = '', $asc = ''){
+        $list = self::select('*');
+        if( $field != '' && $value != ''){
+            if($operate == 'LIKE' || $operate == 'like'){
+                $list = $list->where($field, 'LIKE', "%" . trim($value) . "%");
+            }else{
+                if($operate == ''){
+                    $list = $list->where($field, $value);
+                }else{
+                    $list = $list->where($field, $operate, $value);
+                }
+            }
+        }
+        if($sort != ''){
+            if( $asc == 'desc'){
+                $list = $list->orderBy($sort, 'desc');
+            }else{
+                $list = $list->orderBy($sort, 'asc');
+            }
+        }else{
+            $list = $list->orderBy('sort_order', 'desc')->orderBy('id', 'desc');
+        }
+
+        if($type == 'top'){
+            if($num > 0){
+                $list = $list->limit($num);
+            }
+            $list = $list->get();
+        }else{
+            $list = $list->paginate($num)->appends(\Request::all());
+        }
+
+        return $list;
+    }
+
+    //所有数据、列表
+    public static function getListBase($limit = 0, $field = '', $operate = '', $value = '', $sort = '', $asc = ''){
+        return self::getListWhereBase('top', $limit, $field, $operate, $value, $sort, $asc);
+    }
+
+    //分页列表
+    public static function getListByPageBase($page_size, $field = '', $operate = '', $value = '', $sort = '', $asc = ''){
+        return self::getListWhereBase('pager', $page_size, $field, $operate, $value, $sort, $asc);
+    }
+
+    //通过父级id获取列表
+    public static function getListByParentId($parent_id){
+        return self::where('parent_id', $parent_id)->orderBy('sort_order', 'desc')->orderBy('id', 'desc')->get();
+    }
+
+    //添加
+    public static function addItem($arr){
+        $item = self::create($arr);
+        if($item){
+            return $item->id;
+        }else{
+            return false;
+        }
+    }
+
+    //编辑
+    public static function editItem($id, $item){
+        $arr = self::parseInput($item);
+        return self::where('id', $id)->update($arr);
+    }
+
+    //删除
+    public static function delByIds($ids){
+        return self::destroy($ids);
+    }
+
+    //条件删除
+    public static function delByWhere($first, $second, $third){
+        return self::where($first, $second, $third)->delete();
+    }
+
+    //通过id更新
+    public static function updateItem($id, $arr){
+        return self::where('id', $id)->update($arr);
+    }
+
+    //通过其他条件更新
+    public static function updateBy($field, $param, $arr){
+        return self::where($field, $param)->update($arr);
+    }
+}
